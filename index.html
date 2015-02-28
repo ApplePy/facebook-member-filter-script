@@ -1,102 +1,154 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>Facebook Login JavaScript Example</title>
-<meta charset="UTF-8">
-</head>
-<body>
-<script>
-  // This is called with the results from from FB.getLoginStatus().
-  function statusChangeCallback(response) {
-    console.log('statusChangeCallback');
-    console.log(response);
-    // The response object is returned with a status field that lets the
-    // app know the current login status of the person.
-    // Full docs on the response object can be found in the documentation
-    // for FB.getLoginStatus().
-    if (response.status === 'connected') {
-      // Logged into your app and Facebook.
-      testAPI();
-    } else if (response.status === 'not_authorized') {
-      // The person is logged into Facebook, but not your app.
-      document.getElementById('status').innerHTML = 'Please log ' +
-        'into this app.';
-    } else {
-      // The person is not logged into Facebook, so we're not sure if
-      // they are logged into this app or not.
-      document.getElementById('status').innerHTML = 'Please log ' +
-        'into Facebook.';
-    }
-  }
+    <head>
+        <title>JavaScript Test</title>
+        <meta charset="UTF-8">
+    </head>
+    <style>
+        .fb-login-button {
+            float: right;
+            padding-top: 30px;
+            padding-right: 15px;
+        }
+        #titlediv {
+            float: right;
+            padding-top: 15px;
+            padding-right: 25%;
+        }
+        .format {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 10%;
+        }
+    </style>
+    <body>
+        <div id="fb-root"></div>
+        <div class="fb-login-button" data-max-rows="1" data-size="xlarge" data-scope="public_profile, user_friends, user_groups" data-show-faces="false" data-auto-logout-link="true" onlogin="checkLogin()", default-audience="only_me"></div>
+        <div id="titlediv"><h1 id="title">ENG Survival - Administration Console</h1></div>
+        
+        <p class="format" id="permissions"></p>
+        <p class="format" id="members"></p>
+        
+        <script>
+            var AccessToken;
+            var members;
+            var adminName = {};
+            
+            function checkLogin() {
+                FB.getLoginStatus(function(response) {
+                    if (response.status === 'connected') {
+                        console.log('Logged in.');
+                        AccessToken = response.authResponse.accessToken;
+                        apiCall("/v2.2/me", function(response) {
+                            document.getElementById("permissions").innerHTML += response;
+                            var objUser = JSON.parse(response);
+                                adminName.name = objUser.name;
+                                adminName.id = objUser.id;
+                        });
+                        apiCall("/v2.2/me/permissions", function(response) {
+                            var groupsAllowed = false;
+                            var objPermissions = JSON.parse(response);
+                            var stopLoop = false; //to stop the loop prematurely
+                            var x = 0;
+                            while (!stopLoop || x < objPermissions.data.length) {
+                                if (objPermissions.data[x].permission == "user_groups") {
+                                    if (objPermissions.data[x].status == "granted") {
+                                        groupsAllowed = true;
+                                    }
+                                    stopLoop = true;
+                                }
+                                ++x;
+                            }
+                            if (groupsAllowed == false) {
+                                document.getElementById("permissions").innerHTML = "This app requires permission to view groups in order to administer the ENG Survival group. Please reconsider.<br /><button type=\"button\" onClick=\"reconsider()\">Reconsider</button>";
+                            }
+                            else {
+                                apiCall("/1554896381413406/members", function(response){
+                                    members = JSON.parse(response);
+                                    document.getElementById("members").innerHTML = response;
+                                });
+                            }
+                        });
+                        
+                        
+                        
+                    }
+                    else {
+                        //leave it to the button to deal with it.
+                    }
+                });
+            }
+            
+            function reconsider() {
+                FB.login(
+                    function(response) {
+                        console.log(response);
+                        checkLogin();
+                        if (members) {
+                            document.getElementById("permissions").innerHTML = ""; //members variable is now stocked with real users, wipe permissions warning.
+                        }
+                    },
+                    {
+                        scope: 'user_groups',
+                        auth_type: 'rerequest'
+                    }
+                );
+            }
+            
+            //for all FB API calls
+            function apiCall(url, callback) {
+                FB.api(url, function(response) {
+                    console.log(JSON.stringify(response));
+                    if (callback) {
+                        callback(JSON.stringify(response));
+                    }
+                    });
+            }
+            
+            function httpGet(theUrl) {
+                var xmlHttp = null;
 
-  // This function is called when someone finishes with the Login
-  // Button.  See the onlogin handler attached to it in the sample
-  // code below.
-  function checkLoginState() {
-    FB.getLoginStatus(function(response) {
-      statusChangeCallback(response);
-    });
-  }
+                xmlHttp = new XMLHttpRequest();
+                xmlHttp.open( "GET", theUrl, false );
+                xmlHttp.send( null );
+                return xmlHttp.responseText;
+            }
+            
+            //FB.Init is up verification code. The rest of the FB functions will not run until fbApiInit = true;
+            var fbApiInit = false;
+            function checkAPIComplete(globalControlVariable, callback) {
+                FB.getLoginStatus(function(response){
+                    globalControlVariable = true;
+                });
+                if (!globalControlVariable) {
+                    setTimeout(function() {checkAPIComplete(globalControlVariable,callback);}, 50);
+                }
+                else {
+                    if(callback) {
+                        callback();
+                    }
+                }
+            }
+            
+            window.fbAsyncInit = function() {
+                FB.init({
+                    appId      : '1461836634038781',
+                    status     : true,
+                    cookie     : true,
+                    xfbml      : true,
+                    version    : 'v2.1'
+                });
+                
+                checkAPIComplete(fbApiInit, checkLogin);
+            };
 
-  window.fbAsyncInit = function() {
-  FB.init({
-    appId      : '{your-app-id}',
-    cookie     : true,  // enable cookies to allow the server to access 
-                        // the session
-    xfbml      : true,  // parse social plugins on this page
-    version    : 'v2.2' // use version 2.2
-  });
-
-  // Now that we've initialized the JavaScript SDK, we call 
-  // FB.getLoginStatus().  This function gets the state of the
-  // person visiting this page and can return one of three states to
-  // the callback you provide.  They can be:
-  //
-  // 1. Logged into your app ('connected')
-  // 2. Logged into Facebook, but not your app ('not_authorized')
-  // 3. Not logged into Facebook and can't tell if they are logged into
-  //    your app or not.
-  //
-  // These three cases are handled in the callback function.
-
-  FB.getLoginStatus(function(response) {
-    statusChangeCallback(response);
-  });
-
-  };
-
-  // Load the SDK asynchronously
-  (function(d, s, id) {
-    var js, fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) return;
-    js = d.createElement(s); js.id = id;
-    js.src = "//connect.facebook.net/en_US/sdk.js";
-    fjs.parentNode.insertBefore(js, fjs);
-  }(document, 'script', 'facebook-jssdk'));
-
-  // Here we run a very simple test of the Graph API after login is
-  // successful.  See statusChangeCallback() for when this call is made.
-  function testAPI() {
-    console.log('Welcome!  Fetching your information.... ');
-    FB.api('/me', function(response) {
-      console.log('Successful login for: ' + response.name);
-      document.getElementById('status').innerHTML =
-        'Thanks for logging in, ' + response.name + '!';
-    });
-  }
-</script>
-
-<!--
-  Below we include the Login Button social plugin. This button uses
-  the JavaScript SDK to present a graphical Login button that triggers
-  the FB.login() function when clicked.
--->
-
-<fb:login-button scope="public_profile,email" onlogin="checkLoginState();">
-</fb:login-button>
-
-<div id="status">
-</div>
-
-</body>
+            (function(d, s, id){
+                var js, fjs = d.getElementsByTagName(s)[0];
+                if (d.getElementById(id)) {return;}
+                js = d.createElement(s); js.id = id;
+                js.src = "https://connect.facebook.net/en_US/sdk.js";
+                fjs.parentNode.insertBefore(js, fjs);
+                }(document, 'script', 'facebook-jssdk'));
+        </script>
+    </body>
 </html>
