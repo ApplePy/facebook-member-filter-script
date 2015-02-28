@@ -63,9 +63,10 @@
                                 document.getElementById("permissions").innerHTML = "This app requires permission to view groups in order to administer the ENG Survival group. Please reconsider.<br /><button type=\"button\" onClick=\"reconsider()\">Reconsider</button>";
                             }
                             else {
-                                apiCall("/1554896381413406/members", function(response){
-                                    members = JSON.parse(response);
+                                apiCall("/1554896381413406/members?limit=5000&offset=true", function(response){
+                                    members = JSON.parse(response); //Note, paging may occur - won't bother controlling for it though
                                     document.getElementById("members").innerHTML = response;
+                                    admin.isAdmin = (string === "true");
                                 });
                             }
                         });
