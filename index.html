@@ -3,153 +3,30 @@
     <head>
         <title>JavaScript Test</title>
         <meta charset="UTF-8">
+        <script src="javascript.js"></script>
+        <link rel="stylesheet" type="text/css" href="styles.css">
     </head>
-    <style>
-        .fb-login-button {
-            float: right;
-            padding-top: 30px;
-            padding-right: 15px;
-        }
-        #titlediv {
-            float: right;
-            padding-top: 15px;
-            padding-right: 25%;
-        }
-        .format {
-            padding-left: 10px;
-            padding-right: 10px;
-            padding-top: 10%;
-        }
-    </style>
     <body>
         <div id="fb-root"></div>
         <div class="fb-login-button" data-max-rows="1" data-size="xlarge" data-scope="public_profile, user_friends, user_groups" data-show-faces="false" data-auto-logout-link="true" onlogin="checkLogin()", default-audience="only_me"></div>
         <div id="titlediv"><h1 id="title">ENG Survival - Administration Console</h1></div>
         
+        <p class="format">
+            <form action="http://www.uwo.ca/cgi-bin/dsgw/whois2html2" class="formcontrol" method="POST" name="Search_people" onsubmit="return checkBlank(this)" target="theframe">
+                <input name="server" type="hidden" value="localhost">
+                <label class="obscure" for="student_name">First Name</label>
+                <input class="entry-rbn-long" gtbfieldid="379" id="student_name" maxlength="40" name="query" placeholder="Last Name, First Name" style="border-color: #BBB;" type="text">
+                <label class="obscure" for="sub_btn">Submit Button</label>
+                <input class="formbtn-rbn" id="sub_btn" type="SUBMIT" value="Search">
+                <label class="obscure" for="res_btn">Reset Button</label>
+                <input class="formbtn-rbn" id="res_btn" type="RESET" value="Clear">
+            </form>
+        </p>
+    
+        <iframe id="theframe" height="60px" type="hidden" onload="document.getElementById('members').innerHTML='Done load.'"></iframe>
+        
         <p class="format" id="permissions"></p>
         <p class="format" id="members"></p>
         
-        <script>
-            var AccessToken;
-            var members;
-            var adminName = {};
-            
-            function checkLogin() {
-                FB.getLoginStatus(function(response) {
-                    if (response.status === 'connected') {
-                        console.log('Logged in.');
-                        AccessToken = response.authResponse.accessToken;
-                        apiCall("/v2.2/me", function(response) {
-                            document.getElementById("permissions").innerHTML += response;
-                            var objUser = JSON.parse(response);
-                                adminName.name = objUser.name;
-                                adminName.id = objUser.id;
-                        });
-                        apiCall("/v2.2/me/permissions", function(response) {
-                            var groupsAllowed = false;
-                            var objPermissions = JSON.parse(response);
-                            var stopLoop = false; //to stop the loop prematurely
-                            var x = 0;
-                            while (!stopLoop || x < objPermissions.data.length) {
-                                if (objPermissions.data[x].permission == "user_groups") {
-                                    if (objPermissions.data[x].status == "granted") {
-                                        groupsAllowed = true;
-                                    }
-                                    stopLoop = true;
-                                }
-                                ++x;
-                            }
-                            if (groupsAllowed == false) {
-                                document.getElementById("permissions").innerHTML = "This app requires permission to view groups in order to administer the ENG Survival group. Please reconsider.<br /><button type=\"button\" onClick=\"reconsider()\">Reconsider</button>";
-                            }
-                            else {
-                                apiCall("/1554896381413406/members?limit=5000&offset=0", function(response){
-                                    members = JSON.parse(response); //Note, paging may occur - won't bother controlling for it though
-                                    document.getElementById("members").innerHTML = response;
-                                    admin.isAdmin = (string === "true");
-                                });
-                            }
-                        });
-                        
-                        
-                        
-                    }
-                    else {
-                        //leave it to the button to deal with it.
-                    }
-                });
-            }
-            
-            function reconsider() {
-                FB.login(
-                    function(response) {
-                        console.log(response);
-                        checkLogin();
-                        if (members) {
-                            document.getElementById("permissions").innerHTML = ""; //members variable is now stocked with real users, wipe permissions warning.
-                        }
-                    },
-                    {
-                        scope: 'user_groups',
-                        auth_type: 'rerequest'
-                    }
-                );
-            }
-            
-            //for all FB API calls
-            function apiCall(url, callback) {
-                FB.api(url, function(response) {
-                    console.log(JSON.stringify(response));
-                    if (callback) {
-                        callback(JSON.stringify(response));
-                    }
-                    });
-            }
-            
-            function httpGet(theUrl) {
-                var xmlHttp = null;
-
-                xmlHttp = new XMLHttpRequest();
-                xmlHttp.open( "GET", theUrl, false );
-                xmlHttp.send( null );
-                return xmlHttp.responseText;
-            }
-            
-            //FB.Init is up verification code. The rest of the FB functions will not run until fbApiInit = true;
-            var fbApiInit = false;
-            function checkAPIComplete(globalControlVariable, callback) {
-                FB.getLoginStatus(function(response){
-                    globalControlVariable = true;
-                });
-                if (!globalControlVariable) {
-                    setTimeout(function() {checkAPIComplete(globalControlVariable,callback);}, 50);
-                }
-                else {
-                    if(callback) {
-                        callback();
-                    }
-                }
-            }
-            
-            window.fbAsyncInit = function() {
-                FB.init({
-                    appId      : '1461836634038781',
-                    status     : true,
-                    cookie     : true,
-                    xfbml      : true,
-                    version    : 'v2.1'
-                });
-                
-                checkAPIComplete(fbApiInit, checkLogin);
-            };
-
-            (function(d, s, id){
-                var js, fjs = d.getElementsByTagName(s)[0];
-                if (d.getElementById(id)) {return;}
-                js = d.createElement(s); js.id = id;
-                js.src = "https://connect.facebook.net/en_US/sdk.js";
-                fjs.parentNode.insertBefore(js, fjs);
-                }(document, 'script', 'facebook-jssdk'));
-        </script>
     </body>
 </html>
