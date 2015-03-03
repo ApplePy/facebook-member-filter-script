@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>JavaScript Test</title>
+        <title>ENG Survival - Administration Console</title>
         <meta charset="UTF-8">
         <script src="javascript.js"></script>
         <!--<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.2.min.js"></script>-->
@@ -37,17 +37,25 @@
             </div>
         </div>
         <div id="outputDiv">
-            <div class="output">
-                <p class="title">Output</b>
-            <p id="output"></p>
+            <div class="output rejectedSection">
+                <p class="title">Rejected</p>
+                <p id="rejected"></p>
             </div>
-            <div class="output">
-                <p class="title">Not Found</b>
-            <p id="nonExistent"></p>
+            <div class="output multipleSection">
+                <p class="title">Multiple Entries</p>
+                <p id="multiple"></p>
             </div>
-            <div class="output">
-                <p class="title">Error Log</b>
-            <p id="error"></p>
+            <div class="output nonExistentSection">
+                <p class="title">Not Found</p>
+                <p id="nonExistent"></p>
+            </div>
+            <div class="output clearedSection">
+                <p class="title">Cleared</p>
+                <p id="cleared"></p>
+            </div>
+            <div class="output errorSection">
+                <!--<p class="title">Error Log</p>-->
+                <p id="error"></p>
             </div>
         </div>
 

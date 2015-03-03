@@ -1,12 +1,14 @@
 //Global variables
-var membersList = {name:[], id:[]}; //contains a list only containing the list of users, ids, and nothing else
+var membersList = {name: [], id: []}; //contains a list only containing the list of users, ids, and nothing else
 var adminData = {}; //contains some information about the logged in user.
 var searchRate = 500; //search rate in ms per page
 var groupsAllowed = false; //A quick and dirty way of signalling to the entire program whether or not they have the permissions to run
 var fbGroupId = 1554896381413406; //This is the group's ID
 
 //HTML page elements to speed up javascript execution time
-var outputElement;
+var clearedElement;
+var rejectedElement;
+var multipleElement;
 var nonExistentElement;
 var errorElement;
 var debugElement;
@@ -23,13 +25,13 @@ var beginCheckTest = "Names loaded. Begin checking? <input type=\"button\" oncli
 //This function runs once the user has been identified as logged into both Facebook and the app.
 function loggedIn(loginData, callback) {
 
-        //This API call gets the name and needed details of the logged in user, for personalization. Will only run once
-        console.log ("Retrieving logged-in user data...");
-        FB.api("/v2.2/me", function(response) {
-            adminData.name = response.name;
-            adminData.id = response.id;
-            document.getElementById("name").innerHTML= "Welcome, " + adminData.name + "!"; //Write the welcome message to the user
-        });
+    //This API call gets the name and needed details of the logged in user, for personalization. Will only run once
+    console.log("Retrieving logged-in user data...");
+    FB.api("/v2.2/me", function (response) {
+        adminData.name = response.name;
+        adminData.id = response.id;
+        document.getElementById("name").innerHTML = "Welcome, " + adminData.name + "!"; //Write the welcome message to the user
+    });
 
     checkingGroupPermissions(retrieveNames, askForReconsideration); //Check permissions, act accordingly
 
@@ -41,13 +43,13 @@ function loggedIn(loginData, callback) {
 
 //This function checks group permissions from the user, and sets the global variable "groupsAllowed" accordingly.
 function checkingGroupPermissions(grantedCallback, deniedCallback) {
-    console.log ("Retrieving permissions...");
+    console.log("Retrieving permissions...");
 
     //This API call gets the permissions the user granted the app
-    FB.api("/v2.2/me/permissions", function(objPermissions) {
+    FB.api("/v2.2/me/permissions", function (objPermissions) {
 
         //loop through the retrieved permissions data stucture, looking for important bit: groups permissions
-        for (x = 0, stopLoop = false; !stopLoop || x < objPermissions.data.length; x++) {
+        for (x = 0, stopLoop = false; !stopLoop || x < objPermissions.data.length; ++x) {
             if (objPermissions.data[x].permission === "user_groups") { //if the users_groups section is found...
                 if (objPermissions.data[x].status === "granted") { //... and we're granted permissions to groups...
                     groupsAllowed = true; //... tell all other functions that we're clear for operation.
@@ -89,7 +91,7 @@ function retrieveNames(limit, offset) {
 
     if (groupsAllowed === true) {
         console.log ("Retrieving member names...");
-        
+
         //This function retrieves the member list page
         FB.api("/" + fbGroupId + "/members?limit=" + limit + "&offset=" + offset, function(response){
             //Iterates through member list, recording names
@@ -137,53 +139,114 @@ function reconsider() {
 
 
 
-//This is the checking function.
+//This is the checking function. It coordinates calling for the iframe and processing it's contents into not found, error, or results - subject to further filtering
 function startChecking(entry) {
-    console.log("StartChecking run " + entry + " of " + membersList.length);
-    if (entry < membersList.length) {
-        var form = document.getElementById("studentForm");
-        var field = document.getElementById("student_name");
+    console.log("StartChecking run " + entry + " of " + membersList.name.length);
+
+    //Iterate through the list of users
+    if (entry < membersList.name.length) {
         var entryFormatted;
 
-        var position = -1;
-        var continueLoop = true;
-        while (continueLoop) {
-            var positionTemp = membersList[entry].indexOf(" ",position + 1);
+        //Loop through the name to filter out the last names
+        var spacePosition = -1; //this is set so that if a space isn't found in the first run through the member's name, the loop exits
+        var firstSpace = -1;
+        var continueLoop = false;
+        do {
+            var positionTemp = membersList.name[entry].indexOf(" ",spacePosition + 1);
             if (positionTemp != -1) {
-                position = positionTemp;
+                if (spacePosition == -1) {
+                    firstSpace = positionTemp;
+                }
+                spacePosition = positionTemp;
+                continueLoop = true;
             }
             else {
                 continueLoop = false;
             }
+        } while (continueLoop);
+        
+        entryFormatted = membersList.name[entry].substring(spacePosition + 1) + ", " + membersList.name[entry].substring(0, firstSpace); //Format name for UWO entry, strips out middle names
+        //Non-Ascii names short-circuit
+        if (/^[\000-\177]*$/.test(entryFormatted) != true) {
+            console.log ("Non-ASCII name, skipping...");
+            nonExistentElement.innerHTML = entryFormatted + "<br /> " + nonExistentElement.innerHTML;
+            startChecking(entry + 1);
         }
+        
+        else {
+            document.getElementById("student_name").value = entryFormatted; //Enter name into field
+            document.getElementById("studentForm").submit(); //Submit form
 
-        entryFormatted = membersList[entry].substring(position + 1) + ", " + membersList[entry].substring(0, position);
-        field.value = entryFormatted;
-        form.submit();
-        setTimeout (function() {
-            var frame = document.getElementById("theframe").contentDocument;
-            if (frame.getElementById("student_search_results") !== null){
-                console.log ("ContentFound");
-                document.getElementById("output").innerHTML = entryFormatted + "<br /><table>"+frame.getElementById("student_search_results").innerHTML+"</table>" + document.getElementById("output").innerHTML;
-                startChecking(entry + 1);
-            }
-            else {
-                if (frame.body.innerHTML.search(" The requested object does not exist on this server. The link you followed is either outdated, inaccurate, or the server has been instructed not to let you have it.") > 0) {
-                    document.getElementById("error").innerHTML += entryFormatted + "<br /> Error! Trying again...</br>";
-                    startChecking(entry);
-                }
-                else {
-                    document.getElementById("nonExistent").innerHTML = entryFormatted + "<br /> " + document.getElementById("nonExistent").innerHTML;
+            //Give some time for the page to load, then read it
+            setTimeout (function() {
+                var frame = document.getElementById("theframe").contentDocument; //contains the iframe document's object
+
+                //If table is found, parse it. Otherwise, note that they don't exist
+                if (frame.getElementById("student_search_results") !== null){
+                    console.log ("Name found");
+
+                    //document.getElementById("output").innerHTML = entryFormatted + "<br />"; //output name
+                    parseTable(frame.getElementById("student_search_results"), entryFormatted, "Faculty of Engineering"); //parse table
+
                     startChecking(entry + 1);
                 }
-            }
-        }, searchRate);
+                else {
+                    if (frame.body.innerHTML.search("No entries found ") > 0) {
+                        nonExistentElement.innerHTML = entryFormatted + "<br /> " + nonExistentElement.innerHTML;
+//***************************************************************************************************************************************
+                        //In here, check for variations (e.g. try middle names one at a time, then last name only in case they're unique)
+//***************************************************************************************************************************************
+                        startChecking(entry + 1);
+                    }
+                    else {
+                        console.log ("Encoutered an error with name " + entryFormatted);
+                        errorElement.innerHTML += entryFormatted + "<br /> Error! Trying again...</br>";
+                        startChecking(entry);
+                    }
+                }
+            }, searchRate);
+        }
     }
 }
 
+//Parse table results
+function parseTable (tableContents, name, faculty, frame) {
+    console.log ("Parsing name table...");
+    if (tableContents.rows.length == 2) { //If there's only one match
+        if (tableContents.rows[1].cells[2].innerHTML == "Faculty of Engineering") { //and the match is in Faculty of Engineering
+            console.log(name + " cleared.");
+            clearedElement.innerHTML = name + "<br/>" + clearedElement.innerHTML;
+        }
+        else {
+            rejectedElement.innerHTML = "<table><tr><td><b>" + name + "</b></td><td>" + tableContents.rows[1].cells[2].innerHTML + "</td></tr></table><br />" + rejectedElement.innerHTML;
+        }
+    }
+    else {
+        var text = "";
+        for(x = 1; x < tableContents.rows.length; x++) {
+            text += tableContents.rows[x].cells[2].innerHTML + "<br/>";
+        }
+        multipleElement.innerHTML = "<table><tr><td><b>" + name + "</b></td><td>" + text + "</td></tr></table><br />" + multipleElement.innerHTML;
+        //document.getElementById("output").innerHTML = name + "<br />" + tableContents + document.getElementById("output").innerHTML;
+    }
+}
 
+//This function counts the number of times a substring appears in a string
+function substringCount (string, substring) {
+    console.log ("Starting counting using " + substring);
+    var stringPos = -1;
+    var count = 0;
 
+    do {
+        console.log("Count: " + count + " Pos: " + stringPos);
+        stringPos = string.indexOf(substring, stringPos + 1); 
+        if (stringPos != -1) {
+            count++;
+        }
+    } while (stringPos != -1);
 
+    return count;
+}
 
 //Depreciated. Keep it though?
 /*function httpGet(theUrl) {
@@ -234,12 +297,14 @@ window.fbAsyncInit = function() {
     });
 
     //HTML page elements to speed up javascript execution time
-    outputElement = document.getElementById("output");
+    clearedElement = document.getElementById("cleared");
+    rejectedElement = document.getElementById("rejected");
+    multipleElement = document.getElementById("multiple");
     nonExistentElement = document.getElementById("nonExistent");
     errorElement = document.getElementById("error");
     debugElement = document.getElementById("debug");
 
-    
+
     //If jQuery was to be implemented, it would be placed here to block initial javascript execution until jQuery is ready.
     checkLogin(loggedIn);
 

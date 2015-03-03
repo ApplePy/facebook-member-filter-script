@@ -31,9 +31,23 @@
     font-size: 30px;
 }
 
+.clearedSection {
+    visibility: hidden;
+}
+
+.errorSection {
+    visibility: hidden;
+}
+
 /*larger screens*/
 @media screen and (min-width: 10cm) {
     .fb-login-button {
         float: right;
+    }
+    .clearedSection {
+        visibility: visible;
+    }
+    .errorSection {
+        visibility: visible;
     }
 }
