@@ -2,6 +2,7 @@ var AccessToken; //contains access token, although isn't really necessary with F
 var members; //contains object holding the members
 var membersList = []; //contains a list only containing the list of users and nothing else
 var adminName = {}; //contains some information about the logged in user.
+var searchRate = 500; //search rate in ms
 
 
 function checkLogin(callback) {
@@ -96,7 +97,7 @@ function startChecking(entry) {
                     startChecking(entry + 1);
                 }
             }
-        }, 1000);
+        }, searchRate);
     }
 }
 
